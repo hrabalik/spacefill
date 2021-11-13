@@ -1,0 +1,5 @@
+cmake_minimum_required(VERSION 3.4.1)
+include(cmake/CompilerWarnings.cmake)
+project(spacefill)
+add_executable(spacefill spacefill.cpp)
+set_project_warnings(spacefill)
