@@ -24,8 +24,7 @@ void draw_map() {
     }
 }
 
-std::tuple<uint16_t, uint16_t> spacefill_idx_to_coords(uint32_t idx) {
-    // deinterleave idx into x, y
+void deinterleave(uint32_t idx, uint16_t& a, uint16_t& b) {
     uint16_t x = 0;
     for (int i = 0; i < 16; i++) {
         int j = 2 * i;
@@ -36,6 +35,14 @@ std::tuple<uint16_t, uint16_t> spacefill_idx_to_coords(uint32_t idx) {
         int k = (2 * i) + 1;
         y = y | static_cast<uint16_t>((idx & (1 << k)) >> (k - i));
     }
+    a = x;
+    b = y;
+}
+
+std::tuple<uint16_t, uint16_t> spacefill_idx_to_coords(uint32_t idx) {
+    uint16_t x;
+    uint16_t y;
+    deinterleave(idx, x, y);
 
     const uint16_t z = x ^ y;
     uint16_t z_out = 0;
@@ -63,6 +70,27 @@ std::tuple<uint16_t, uint16_t> spacefill_idx_to_coords(uint32_t idx) {
     return {z_out, y_out};
 }
 
+std::tuple<uint16_t, uint16_t> spacefill_idx_to_coords_alt(uint32_t idx) {
+    uint16_t x;
+    uint16_t y;
+    deinterleave(idx, x, y);
+
+    auto propagate = [](uint16_t val) -> uint16_t {
+        uint16_t result = 0;
+        for (uint16_t bit = static_cast<uint16_t>(1) << 15; bit != 0; bit >>= 1) {
+            const uint16_t x = val & bit;
+            result ^= (x == 0) ? 0 : (x - 1);
+        }
+        return result;
+    };
+
+    const uint16_t z = x ^ y;
+    const uint16_t tsp = ~propagate(~z);
+    const uint16_t inv = propagate(x & y);
+    const uint16_t diff = (x & tsp) ^ inv;
+    return {z ^ diff, y ^ diff};
+}
+
 int main() {
     std::ios::sync_with_stdio(false);
     auto last_coords = std::tuple<uint16_t, uint16_t>(0, 0);
@@ -81,6 +109,8 @@ int main() {
         } else {
             if (((y_min + 1) < map_h) && (x_min < map_w)) { map_vert[y_min][x_min] = true; }
         }
+        auto coords_alt = spacefill_idx_to_coords_alt(idx);
+        assert(coords == coords_alt);
         last_coords = coords;
     }
 
